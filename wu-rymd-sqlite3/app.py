@@ -1,6 +1,31 @@
 #! /usr/bin/python
 
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+#
+#  Raymond Wu  /  2018-07-18
+#
+#  Flask webapplication as proof-of-concept for simple database manipulation using
+#  user registrations and log-ins
+#
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#
+#  TO-DO:
+#
+#  ---> How to get string representations of entries in table?
+#    fName = database.execute("SELECT firstName from credentials where email = (?)", [uEmail])
+#    lName = database.execute("SELECT lastName from credentials where email = (?)", [uEmail])
+#
+#  ---> User session --> Logout
+#    Looking into Flask-Session
+#
+#  ---> Hide query
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+
+
 # Flask:           run flask app
 # render_template: render webpage
 # request:         process data from form
@@ -109,14 +134,26 @@ def auth():
         uEmail = request.form['email']
         uPass = request.form['pass']
 
-        # add data
-        database.execute('INSERT INTO credentials (firstName, lastName, school, email, password) VALUES ("' + uFirstName + '", "' + uLastName + '", "' + uSchool + '", "' + uEmail + '", "' + uPass + '")')
+
+        # checking to see if e-mail already exists in database
         
-        connection.commit()
-        connection.close()
+        gEmail = database.execute("SELECT email from credentials where email = (?)", [uEmail])
+        emailExists = gEmail.fetchone()
+
+        if emailExists:
+            retStr = "<h2> That e-mail is already taken! </h2> <br>"
+            return retStr + render_template('/index.html')
+
+        else:
+        
+            # add data
+            database.execute('INSERT INTO credentials (firstName, lastName, school, email, password) VALUES ("' + uFirstName + '", "' + uLastName + '", "' + uSchool + '", "' + uEmail + '", "' + uPass + '")')
+        
+            connection.commit()
+            connection.close()
     
-        retStr = "<h1> Account created! </h1> <br>"
-        return retStr + render_template('/index.html')
+            retStr = "<h1> Account created! </h1> <br>"
+            return retStr + render_template('/index.html')
 
 
     # not GET or POST methods
