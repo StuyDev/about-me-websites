@@ -11,17 +11,6 @@ import sqlite3
 
 
 
-# open the database
-connection = sqlite3.connect("database.db")
-database = connection.cursor()
-
-# create the database -- if doesn't already exist
-try:
-    database.execute('CREATE TABLE credentials (id REAL, firstName TEXT, lastName TEXT, school TEXT, email TEXT, password TEXT)')
-except sqlite3.OperationalError:
-    pass
-    
-
 app = Flask(__name__)
 
 
@@ -57,63 +46,92 @@ def register():
 # page solely for authorizing log in/registration
 @app.route('/auth.html', methods = ['GET', 'POST'])
 def auth():
+
+
+    # KEEP IN THIS METHOD TO AVOID sqlite3.ProgrammingErrot:
+    # SQLite objects created in a thread can only be used in that same thread.
+    
+    # open the database
+    connection = sqlite3.connect("database.db")
+    database = connection.cursor()
+    
+    # create the database -- if doesn't already exist
+    try:
+        database.execute('CREATE TABLE credentials (id REAL, firstName TEXT, lastName TEXT, school TEXT, email TEXT, password TEXT)')
+    except sqlite3.OperationalError:
+        pass
+
+
+    
     # if from LOGIN
     if request.method == 'GET':
-        uEmail = request.form['email']
-        uPass = request.form['pass']
+        uEmail = request.args['email']
+        uPass = request.args['pass']
         
         gEmail = database.execute("SELECT email from credentials where email = (?)", [uEmail])
         emailExists = gEmail.fetchone()
 
         if emailExists:
             # does password match that of email?
-            gPass = g.db.execute("SELECT password from credentials where email = (?)", [uEmail])
-            passExists = gPass.fetchone()
+            gPass = database.execute("SELECT password from credentials where email = (?)", [uEmail])
+            actualPass = gPass.fetchone()
 
-            if passExists:
-                fName = g.db.execute("SELECT firstName from credentials where email = (?)", [uEmail])
-                lName = g.db.execute("SELECT lastName from credentials where email = (?)", [uEmail])
+            if uPass == actualPass[0]:
+                # fName = database.execute("SELECT firstName from credentials where email = (?)", [uEmail])
+                # lName = database.execute("SELECT lastName from credentials where email = (?)", [uEmail])
 
-                retStr = "<h1> Hi, " + fName + " " + lName + "! </h1> <br>"
+                connection.commit()
+                connection.close()
+    
+                retStr = "<h1> Hi, " + uEmail + "! </h1> <br>"
                 return retStr + render_template('/index.html')
 
             else:
+                connection.commit()
+                connection.close()
+                
                 retStr = "<h1> Incorrect password! </h1> <br>"
                 return retStr + render_template('/index.html')
         else:
-            retStr = "<h1> Incorrect e-mail! </h1> <br>"
+            connection.commit()
+            connection.close()
+            
+            retStr = "<h1> That e-mail doesn't exist! </h1> <br>"
             return retStr + render_template('/index.html')
 
 
         
-    # if from registration
+    # if from REGISTER
     elif request.method == 'POST':
-        uFirstName = request.form['firstName'] + ", "
-        uLastName = request.form['lastName'] + ", "
-        uSchool = request.form['school'] + ", "
-        uEmail = request.form['email'] + ", "
+        uFirstName = request.form['firstName']
+        uLastName = request.form['lastName']
+        uSchool = request.form['school']
+        uEmail = request.form['email']
         uPass = request.form['pass']
 
         # add data
-        database.execute('INSERT INTO credentials (firstName, lastName, school, email, password) VALUES (' + ufirstName + uLastName + uSchool + uEmail + uPass + ')')
-
+        database.execute('INSERT INTO credentials (firstName, lastName, school, email, password) VALUES ("' + uFirstName + '", "' + uLastName + '", "' + uSchool + '", "' + uEmail + '", "' + uPass + '")')
+        
+        connection.commit()
+        connection.close()
+    
         retStr = "<h1> Account created! </h1> <br>"
         return retStr + render_template('/index.html')
 
 
     # not GET or POST methods
     else:
+        connection.commit()
+        connection.close()
+    
         retStr = "<h2> There was an HTTP method unaccounted for... </h2> <br>"
         return retStr + render_template('/auth.html')
 
 
-
+    connection.commit()
+    connection.close()
     
 
 # run the app!
 if __name__ == '__main__':
    app.run(debug = True)
-
-# close the database
-connection.commit()
-connection.close()
