@@ -3,10 +3,11 @@
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
-#  Raymond Wu  /  2018-07-18
+#  Raymond Wu  /  Th 2018-07-20
 #
-#  Flask webapplication as proof-of-concept for simple database manipulation using
-#  user registrations and log-ins
+#  Flask web application as proof-of-concept
+#    for simple SQLite database manipulation
+#    using user registrations and log-ins
 #
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -18,25 +19,35 @@
 #    lName = database.execute("SELECT lastName from credentials where email = (?)", [uEmail])
 #
 #  ---> User session --> Logout
-#    Looking into Flask-Session
+#    Look into Flask-Session
 #
-#  ---> Hide query
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
 
 
-# Flask:           run flask app
-# render_template: render webpage
-# request:         process data from form
+# Flask:            run flask app
+# render_template:  render webpage
+# request:          process data from form
+
 from flask import Flask, render_template, request
+
+# sqlite3:          database
 
 import sqlite3
 
+# hashlib:          hashing sensitive information
+
+import hashlib
 
 
 
 app = Flask(__name__)
+
+
+
+def hash(string):
+    return hashlib.sha256(string).hexdigest()
 
 
 
@@ -47,10 +58,12 @@ def default():
     return render_template('/index.html');
 
 
+
 # home page
 @app.route('/index.html')
 def index():
     return render_template('/index.html');
+
 
 
 # log in page
@@ -69,11 +82,13 @@ def register():
 
 
 # page solely for authorizing log in/registration
-@app.route('/auth.html', methods = ['GET', 'POST'])
+@app.route('/auth.html', methods = ['POST'])
 def auth():
 
 
-    # KEEP IN THIS METHOD TO AVOID sqlite3.ProgrammingErrot:
+    # using only POST method to hide query parameters/values in URL
+    
+    # KEEP IN THIS METHOD TO AVOID sqlite3.ProgrammingError:
     # SQLite objects created in a thread can only be used in that same thread.
     
     # open the database
@@ -88,16 +103,34 @@ def auth():
 
 
     
+
+    # determine which form submitted
+
+    try:    
+        action = request.form['submit']
+        print action
+    except:
+        action = "UNDEFINED"
+
+    
+
     # if from LOGIN
-    if request.method == 'GET':
-        uEmail = request.args['email']
-        uPass = request.args['pass']
+    if action == "Log in":
+        
+        uEmail = request.form['email']        #  .form[] for POST method  (vs. .args[] for query parameters / GET method)
+        uPass = request.form['pass']
+
+        
+        # hash into hexadecimal
+        uPass = hash(uPass)
+        
         
         gEmail = database.execute("SELECT email from credentials where email = (?)", [uEmail])
         emailExists = gEmail.fetchone()
 
         if emailExists:
             # does password match that of email?
+            # the password in the database has already been hashed
             gPass = database.execute("SELECT password from credentials where email = (?)", [uEmail])
             actualPass = gPass.fetchone()
 
@@ -127,15 +160,20 @@ def auth():
 
         
     # if from REGISTER
-    elif request.method == 'POST':
-        uFirstName = request.form['firstName']
+    elif action == "Register":
+        uFirstName = request.form['firstName']     #  .form[] for POST method  (vs. .args[] for query parameters / GET method)
         uLastName = request.form['lastName']
         uSchool = request.form['school']
         uEmail = request.form['email']
         uPass = request.form['pass']
 
+        
+        # hash into hexadecimal
+        uPass = hash(uPass)
+
 
         # checking to see if e-mail already exists in database
+        # do not allow duplicate e-mail registrations
         
         gEmail = database.execute("SELECT email from credentials where email = (?)", [uEmail])
         emailExists = gEmail.fetchone()
@@ -143,6 +181,7 @@ def auth():
         if emailExists:
             retStr = "<h2> That e-mail is already taken! </h2> <br>"
             return retStr + render_template('/index.html')
+
 
         else:
         
@@ -156,12 +195,22 @@ def auth():
             return retStr + render_template('/index.html')
 
 
-    # not GET or POST methods
+    # value of name="submit" submit button not in ['Log in', 'Register']
+    elif action == "UNDEFINED":
+        connection.commit()
+        connection.close()
+    
+        retStr = "<h2> Action undefined... </h2> <br>"
+        return retStr + render_template('/auth.html')
+
+        
+
+    # value of name="submit" submit button not in ['Log in', 'Register']
     else:
         connection.commit()
         connection.close()
     
-        retStr = "<h2> There was an HTTP method unaccounted for... </h2> <br>"
+        retStr = "<h2> Unexpected error... </h2> <br>"
         return retStr + render_template('/auth.html')
 
 

@@ -7,8 +7,8 @@
   <body>
     <h1> Log in </h1>
 
-    <!-- GET method: get data from server -->
-    <form action="auth.html" method="GET">
+    <!-- POST method used here to hide query parameters/values -->
+    <form action="auth.html" method="POST">
       
       <p> E-mail: </p>
       <input type="email" name="email">
@@ -16,7 +16,7 @@
       <p> Password: </p>
       <input type="password" name="pass"> <br>
       
-      <input type="submit">
+      <input type="submit" name="submit" value="Log in">
       
     </form>
 
